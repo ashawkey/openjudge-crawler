@@ -1,4 +1,4 @@
-*.md
+output
 config.py
 .vscode
 __pycache__

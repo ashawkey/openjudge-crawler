@@ -2,14 +2,17 @@ import grab
 import urllib.parse
 import json
 import time
+import os
 
 from config import *
 
 DEBUG = False
+VERBOSE = True
 
 join = urllib.parse.urljoin
 
 contest = '2020hw2'
+workspace = 'output'
 root = 'http://mathicpython.openjudge.cn/'
 
 g = grab.Grab()
@@ -32,18 +35,18 @@ results = {}
 
 for problem_id, problem in enumerate(problems):
     print(f'[INFO] crawl problem {problem_id}')
-    problem_stat = join(root, join(problem.text(), 'statistics'))
+    url_stat = join(root, join(problem.text(), 'statistics'))
 
     page = 1
     while True:
         print(f'[INFO] start page {page}')
-        g.go(join(problem_stat, f'?page={page}'))
+        g.go(join(url_stat, f'?page={page}'))
         has_next_page = len(g.doc("//a[@class='nextprev'][@rel='next']"))
 
-        ACs = g.doc("//a[@class='result-right']/@href")
-        users = g.doc("//a[@class='result-right']/preceding::a[1]")
+        users = g.doc("//tr/td[@class='submit-user']/a")
+        entries = g.doc("//tr/td[@class='result']/a")
 
-        for user, AC in zip(users, ACs):
+        for user, entry in zip(users, entries):
 
             user = user.text()
 
@@ -51,14 +54,18 @@ for problem_id, problem in enumerate(problems):
                 results[user] = {}
                 
             if not problem_id + 1 in results[user]:
-                solution = join(root, AC.text())
-                g.go(solution)
+                url_solution = join(root, entry.attr('href'))
+                result_type = entry.text()
+
+                g.go(url_solution)
                 source = g.doc("//pre")[0].html()[14:-14]
                 
-                results[user][problem_id + 1] = source
-                print(f'[INFO] add {user} {problem_id + 1}')
+                results[user][problem_id + 1] = [result_type, source]
+
+                if VERBOSE: 
+                    print(f'[INFO] add {user} {result_type} {problem_id + 1}')
         
-        print(f'[INFO] crawled page {page} with {len(ACs)} ACs')
+        print(f'[INFO] crawled page {page} with {len(entries)} entries')
 
         if DEBUG: break
 
@@ -71,7 +78,9 @@ for problem_id, problem in enumerate(problems):
     
 # write md files
 
-filename = contest + '.md'
+os.makedirs(workspace, exist_ok=True)
+
+filename = os.path.join(workspace, contest + '.md')
 
 with open(filename, 'w') as f:
 
@@ -82,8 +91,9 @@ with open(filename, 'w') as f:
         f.write(f'### {user}\n')
         for problem_id in range(len(problems)):
             if problem_id + 1 in results[user]:
-                source = results[user][problem_id + 1]
+                result_type, source = results[user][problem_id + 1]
                 f.write('```python\n')
+                f.write('# ' + result_type + '\n')
                 f.write(source + '\n')
                 f.write('```\n')
             else:
