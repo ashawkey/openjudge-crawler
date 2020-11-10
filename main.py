@@ -94,13 +94,15 @@ users.sort()
 for problem_id in range(len(problems)):
     # build dictionary
     docs = []
+    valid_users = []
     for user in users:
         if problem_id in results[user]:
             docs.append([word.lower() for word in word_tokenize(results[user][problem_id][1])])
+            valid_users.append(user)
     dictionary = gensim.corpora.Dictionary(docs)
     bows = [dictionary.doc2bow(doc) for doc in docs]
     tfidf = gensim.models.TfidfModel(bows)
-    sims = gensim.similarities.Similarity(tempdir + os.sep, tfidf[bows], num_features=len(dictionary))
+    sims = gensim.similarities.Similarity(tempdir, tfidf[bows], num_features=len(dictionary))
     # check duplicates
     for user in users:
         if problem_id in results[user]:
@@ -109,7 +111,7 @@ for problem_id in range(len(problems)):
             query_bow = dictionary.doc2bow(query_doc)
             query_tfidf = tfidf[query_bow]
 
-            for similarity, user2 in zip(sims[query_tfidf], users):
+            for similarity, user2 in zip(sims[query_tfidf], valid_users):
                 if user2 == user: continue
                 if similarity > DUPTHRESH:
                     if VERBOSE:
