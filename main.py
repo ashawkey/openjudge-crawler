@@ -3,6 +3,7 @@ import urllib.parse
 import json
 import time
 import os
+import html
 
 import gensim
 from nltk.tokenize import word_tokenize
@@ -12,10 +13,11 @@ from config import *
 DEBUG = False
 VERBOSE = True
 DUPTHRESH = 0.5
+FIRST_AC = False
 
 join = urllib.parse.urljoin
 
-contest = '2020hw7'
+contest = '2020hw9'
 workspace = 'output'
 tempdir = 'tmp'
 
@@ -61,15 +63,20 @@ for problem_id, problem in enumerate(problems):
             if not user in results:
                 results[user] = {}
             
-            # if accepted, record the first accepted answer
+            # if accepted, record the first or last accepted answer
             # else, record the last answer
-            if not problem_id in results[user] or results[user][problem_id][0] != 'Accepted':
+            if not problem_id in results[user] or results[user][problem_id][0] != 'Accepted' or FIRST_AC:
                 url_solution = join(root, entry.attr('href'))
                 result_type = entry.text()
 
+                # pass if last submission is not accepted.
+                if FIRST_AC and problem_id in results[user] and results[user][problem_id][0] == 'Accepted' and result_type != 'Accepted':
+                    continue
+
                 time.sleep(sleep_time)
                 g.go(url_solution)
-                source = g.doc("//pre")[0].html()[14:-14]
+                source = g.doc("//pre")[0].html()[23:-14]
+                source = html.unescape(source)
                 
                 results[user][problem_id] = [result_type, source]
 
